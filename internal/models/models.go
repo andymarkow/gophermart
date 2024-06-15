@@ -11,8 +11,8 @@ type UserRequest struct {
 }
 
 type UserBalanceResponse struct {
-	Current   decimal.Decimal `json:"current"`
-	Withdrawn decimal.Decimal `json:"withdrawn"`
+	Current   float64 `json:"current"`
+	Withdrawn float64 `json:"withdrawn"`
 }
 
 type BalanceWithdrawalRequest struct {

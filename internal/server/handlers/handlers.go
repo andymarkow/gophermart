@@ -346,8 +346,8 @@ func (h *Handlers) GetUserBalance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := models.UserBalanceResponse{
-		Current:   userBalance.Current,
-		Withdrawn: userBalance.Withdrawn,
+		Current:   userBalance.Current.InexactFloat64(),
+		Withdrawn: userBalance.Withdrawn.InexactFloat64(),
 	}
 
 	handleJSONResponse(w, http.StatusOK, resp)
