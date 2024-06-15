@@ -144,6 +144,7 @@ func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Authorization", token)
 	w.Header().Set("content-type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(token)) //nolint:errcheck
@@ -206,6 +207,7 @@ func (h *Handlers) UserLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Authorization", token)
 	w.Header().Set("content-type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(token)) //nolint:errcheck
