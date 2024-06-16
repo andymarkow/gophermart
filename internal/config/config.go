@@ -12,7 +12,7 @@ type Config struct {
 	ServerAddr          string        `env:"RUN_ADDRESS"`
 	LogLevel            string        `env:"LOG_LEVEL"`
 	DatabaseURI         string        `env:"DATABASE_URI"`
-	AccrualURI          string        `env:"ACCRUAL_ADDRESS"`
+	AccrualURI          string        `env:"ACCRUAL_SYSTEM_ADDRESS"`
 	AccrualPollInterval time.Duration `env:"ACCRUAL_POLL_INTERVAL"`
 	JWTSecretKey        string        `env:"JWT_SECRET_KEY"`
 }
