@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/shopspring/decimal"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -14,13 +13,8 @@ var (
 )
 
 type User struct {
-	Login        string
-	PasswordHash string
-}
-
-type UserBalance struct {
-	Current   decimal.Decimal
-	Withdrawn decimal.Decimal
+	login        string
+	passwordHash string
 }
 
 func NewUser(login, password string) (*User, error) {
@@ -38,9 +32,17 @@ func NewUser(login, password string) (*User, error) {
 	}
 
 	return &User{
-		Login:        login,
-		PasswordHash: passwordHash,
+		login:        login,
+		passwordHash: passwordHash,
 	}, nil
+}
+
+func (u *User) Login() string {
+	return u.login
+}
+
+func (u *User) PasswordHash() string {
+	return u.passwordHash
 }
 
 func getPasswordHash(password string) (string, error) {

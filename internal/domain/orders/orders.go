@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"github.com/andymarkow/gophermart/internal/domain/users"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -16,7 +17,7 @@ var (
 
 type OrderStatus string
 
-var (
+const (
 	OrderStatusNew        OrderStatus = "NEW"
 	OrderStatusInvalid    OrderStatus = "INVALID"
 	OrderStatusProcessing OrderStatus = "PROCESSING"
@@ -24,11 +25,11 @@ var (
 )
 
 type Order struct {
-	Number     string
-	UserLogin  string
-	Status     OrderStatus
-	Accrual    int
-	UploadedAt time.Time
+	number     string
+	userLogin  string
+	status     OrderStatus
+	accrual    decimal.Decimal
+	uploadedAt time.Time
 }
 
 func NewOrder(number string, userLogin string) (*Order, error) {
@@ -41,11 +42,39 @@ func NewOrder(number string, userLogin string) (*Order, error) {
 	}
 
 	return &Order{
-		Number:     number,
-		UserLogin:  userLogin,
-		UploadedAt: time.Now(),
-		Status:     OrderStatusNew,
+		number:     number,
+		userLogin:  userLogin,
+		status:     OrderStatusNew,
+		uploadedAt: time.Now(),
 	}, nil
+}
+
+func (o *Order) Number() string {
+	return o.number
+}
+
+func (o *Order) UserLogin() string {
+	return o.userLogin
+}
+
+func (o *Order) Status() OrderStatus {
+	return o.status
+}
+
+func (o *Order) Accrual() decimal.Decimal {
+	return o.accrual
+}
+
+func (o *Order) UploadedAt() time.Time {
+	return o.uploadedAt
+}
+
+func (o *Order) SetStatus(status OrderStatus) {
+	o.status = status
+}
+
+func (o *Order) SetAccrual(accrual decimal.Decimal) {
+	o.accrual = accrual
 }
 
 func ValidateOrderNumber(number string) error {

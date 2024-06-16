@@ -26,6 +26,9 @@ tidy:
 run:
 	go run ./cmd/gophermart
 
+run-accrual:
+	./cmd/accrual/accrual_darwin_arm64 -a "0.0.0.0:8081"
+
 run-postgres:
 	docker-compose up postgres pgadmin
 

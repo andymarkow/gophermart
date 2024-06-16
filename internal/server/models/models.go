@@ -29,6 +29,6 @@ type BalanceWithdrawalResponse struct {
 type OrderResponse struct {
 	Number     string             `json:"number"`
 	Status     orders.OrderStatus `json:"status"`
-	Accrual    int                `json:"accrual,omitempty"`
+	Accrual    float64            `json:"accrual,omitempty"`
 	UploadedAt string             `json:"uploaded_at"`
 }

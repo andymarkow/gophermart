@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/andymarkow/gophermart/internal/domain/balance"
 	"github.com/andymarkow/gophermart/internal/domain/orders"
 	"github.com/andymarkow/gophermart/internal/domain/users"
 	"github.com/andymarkow/gophermart/internal/domain/withdrawals"
@@ -21,18 +22,32 @@ var (
 	ErrBalanceWithdrawalsNotFound = errors.New("balance withdrawals not found")
 )
 
-type Storage interface { //nolint:interfacebloat
-	Close() error
-	Ping(ctx context.Context) error
-	CreateUser(ctx context.Context, usr *users.User) error
+type UserStorage interface {
 	GetUser(ctx context.Context, login string) (*users.User, error)
-	GetUserBalance(ctx context.Context, login string) (*users.UserBalance, error)
+	CreateUser(ctx context.Context, usr *users.User) error
+}
+
+type UserBalanceStorage interface {
+	GetUserBalance(ctx context.Context, login string) (*balance.Balance, error)
 	DepositUserBalance(ctx context.Context, login string, amount decimal.Decimal) error
 	WithdrawUserBalance(ctx context.Context, withdrawal *withdrawals.Withdrawal) error
 	GetWithdrawalsByUserLogin(ctx context.Context, login string) ([]*withdrawals.Withdrawal, error)
-	CreateOrder(ctx context.Context, ord *orders.Order) error
+}
+
+type OrderStorage interface {
 	GetOrder(ctx context.Context, number string) (*orders.Order, error)
-	GetOrdersByUserLogin(ctx context.Context, login string) ([]*orders.Order, error)
+	GetOrders(ctx context.Context, login string, statuses ...orders.OrderStatus) ([]*orders.Order, error)
+	GetOrdersByStatus(ctx context.Context, statuses ...orders.OrderStatus) ([]*orders.Order, error)
+	CreateOrder(ctx context.Context, order *orders.Order) error
+	ProcessOrderAccrual(ctx context.Context, order *orders.Order) error
+}
+
+type Storage interface {
+	UserStorage
+	UserBalanceStorage
+	OrderStorage
+	Close() error
+	Ping(ctx context.Context) error
 }
 
 func NewStorage(store Storage) Storage {

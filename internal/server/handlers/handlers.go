@@ -13,7 +13,7 @@ import (
 	"github.com/andymarkow/gophermart/internal/domain/users"
 	"github.com/andymarkow/gophermart/internal/domain/withdrawals"
 	"github.com/andymarkow/gophermart/internal/errmsg"
-	"github.com/andymarkow/gophermart/internal/models"
+	"github.com/andymarkow/gophermart/internal/server/models"
 	"github.com/andymarkow/gophermart/internal/storage"
 	"github.com/go-chi/jwtauth/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -136,7 +136,7 @@ func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.auth.CreateJWTString(user.Login)
+	token, err := h.auth.CreateJWTString(user.Login())
 	if err != nil {
 		h.log.Error("jwtauth.CreateJWTString()", slog.Any("error", err))
 		handleError(w, errmsg.NewHTTPError(http.StatusInternalServerError, err))
@@ -184,7 +184,7 @@ func (h *Handlers) UserLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(userPayload.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash()), []byte(userPayload.Password))
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 			h.log.Error("bcrypt.CompareHashAndPassword()", slog.Any("error", err))
@@ -199,7 +199,7 @@ func (h *Handlers) UserLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.auth.CreateJWTString(user.Login)
+	token, err := h.auth.CreateJWTString(user.Login())
 	if err != nil {
 		h.log.Error("jwtauth.CreateJWTString()", slog.Any("error", err))
 		handleError(w, errmsg.NewHTTPError(http.StatusInternalServerError, err))
@@ -276,7 +276,7 @@ func (h *Handlers) CreateUserOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Order has already created by another user
-	if orderReq.UserLogin != orderCheck.UserLogin {
+	if orderReq.UserLogin() != orderCheck.UserLogin() {
 		handleError(w, errmsg.ErrOrderCreatedByAnotherUser)
 
 		return
@@ -298,7 +298,7 @@ func (h *Handlers) GetUserOrders(w http.ResponseWriter, r *http.Request) {
 	// Set user login from JWT sub claim field
 	userLogin := token.Subject()
 
-	userOrders, err := h.storage.GetOrdersByUserLogin(r.Context(), userLogin)
+	userOrders, err := h.storage.GetOrders(r.Context(), userLogin)
 	if err != nil {
 		h.log.Error("storage.GetOrdersByUserLogin()", slog.Any("error", err))
 		handleError(w, errmsg.NewHTTPError(http.StatusInternalServerError, err))
@@ -315,10 +315,10 @@ func (h *Handlers) GetUserOrders(w http.ResponseWriter, r *http.Request) {
 	orderResp := make([]models.OrderResponse, 0, len(userOrders))
 	for _, ord := range userOrders {
 		orderResp = append(orderResp, models.OrderResponse{
-			Number:     ord.Number,
-			Status:     ord.Status,
-			Accrual:    ord.Accrual,
-			UploadedAt: ord.UploadedAt.Format(time.RFC3339),
+			Number:     ord.Number(),
+			Status:     ord.Status(),
+			Accrual:    ord.Accrual().InexactFloat64(),
+			UploadedAt: ord.UploadedAt().Format(time.RFC3339),
 		})
 	}
 
@@ -346,8 +346,8 @@ func (h *Handlers) GetUserBalance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := models.UserBalanceResponse{
-		Current:   userBalance.Current.InexactFloat64(),
-		Withdrawn: userBalance.Withdrawn.InexactFloat64(),
+		Current:   userBalance.Current().InexactFloat64(),
+		Withdrawn: userBalance.Withdrawn().InexactFloat64(),
 	}
 
 	handleJSONResponse(w, http.StatusOK, resp)
@@ -400,14 +400,6 @@ func (h *Handlers) WithdrawUserBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Remove after testing
-	// if err := h.storage.DepositUserBalance(r.Context(), userLogin, decimal.NewFromInt(1000)); err != nil {
-	// 	h.log.Error("storage.DepositUserBalance()", slog.Any("error", err))
-	// 	handleError(w, errmsg.NewHTTPError(http.StatusInternalServerError, err))
-
-	// 	return
-	// }
-
 	if err := h.storage.WithdrawUserBalance(r.Context(), withdrawal); err != nil {
 		if errors.Is(err, storage.ErrUserBalanceNotEnough) {
 			h.log.Error("storage.WithdrawUserBalance()", slog.Any("error", err))
@@ -441,6 +433,12 @@ func (h *Handlers) GetUserWithdrawals(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.log.Error("storage.GetWithdrawalsHistory()", slog.Any("error", err))
 		handleError(w, errmsg.NewHTTPError(http.StatusInternalServerError, err))
+
+		return
+	}
+
+	if len(withdrawals) == 0 {
+		handleJSONResponse(w, http.StatusNoContent, []models.BalanceWithdrawalResponse{})
 
 		return
 	}

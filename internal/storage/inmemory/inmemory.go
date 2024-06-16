@@ -2,9 +2,12 @@ package inmemory
 
 import (
 	"context"
+	"fmt"
+	"slices"
 	"sort"
 	"sync"
 
+	"github.com/andymarkow/gophermart/internal/domain/balance"
 	"github.com/andymarkow/gophermart/internal/domain/orders"
 	"github.com/andymarkow/gophermart/internal/domain/users"
 	"github.com/andymarkow/gophermart/internal/domain/withdrawals"
@@ -20,7 +23,7 @@ type UserStore struct {
 }
 
 type UserBalanceStore struct {
-	balances map[string]*users.UserBalance
+	balances map[string]*balance.Balance
 	mu       sync.Mutex
 }
 
@@ -47,7 +50,7 @@ func NewStorage() *Storage {
 			users: make(map[string]*users.User),
 		},
 		UserBalanceStore: UserBalanceStore{
-			balances: make(map[string]*users.UserBalance),
+			balances: make(map[string]*balance.Balance),
 		},
 		UserWithdrawalStore: UserWithdrawalStore{
 			withdrawals: make(map[string][]*withdrawals.Withdrawal),
@@ -73,17 +76,22 @@ func (s *Storage) CreateUser(_ context.Context, usr *users.User) error {
 	s.UserBalanceStore.mu.Lock()
 	defer s.UserBalanceStore.mu.Unlock()
 
-	if _, ok := s.UserStore.users[usr.Login]; ok {
+	if _, ok := s.UserStore.users[usr.Login()]; ok {
 		return storage.ErrUserAlreadyExists
 	}
 
-	s.UserStore.users[usr.Login] = usr
+	s.UserStore.users[usr.Login()] = usr
 
-	if _, ok := s.UserBalanceStore.balances[usr.Login]; ok {
+	if _, ok := s.UserBalanceStore.balances[usr.Login()]; ok {
 		return storage.ErrUserBalanceAlreadyExists
 	}
 
-	s.UserBalanceStore.balances[usr.Login] = new(users.UserBalance)
+	balance, err := balance.NewBalance(usr.Login(), decimal.NewFromInt(0), decimal.NewFromInt(0))
+	if err != nil {
+		return fmt.Errorf("balance.NewBalance: %w", err)
+	}
+
+	s.UserBalanceStore.balances[usr.Login()] = balance
 
 	return nil
 }
@@ -100,13 +108,13 @@ func (s *Storage) GetUser(_ context.Context, login string) (*users.User, error) 
 	return user, nil
 }
 
-func (s *Storage) GetUserBalance(_ context.Context, login string) (*users.UserBalance, error) {
+func (s *Storage) GetUserBalance(_ context.Context, login string) (*balance.Balance, error) {
 	s.UserBalanceStore.mu.Lock()
 	defer s.UserBalanceStore.mu.Unlock()
 
 	balance, ok := s.UserBalanceStore.balances[login]
 	if !ok {
-		return new(users.UserBalance), nil
+		return nil, storage.ErrUserBalanceNotFound
 	}
 
 	return balance, nil
@@ -121,7 +129,7 @@ func (s *Storage) DepositUserBalance(_ context.Context, login string, amount dec
 		return storage.ErrUserNotFound
 	}
 
-	balance.Current = balance.Current.Add(amount)
+	balance.AddCurrent(amount)
 
 	return nil
 }
@@ -140,12 +148,12 @@ func (s *Storage) WithdrawUserBalance(_ context.Context, withdrawal *withdrawals
 		return storage.ErrUserBalanceNotFound
 	}
 
-	if balance.Current.LessThanOrEqual(withdrawal.Amount()) {
+	if balance.Current().LessThanOrEqual(withdrawal.Amount()) {
 		return storage.ErrUserBalanceNotEnough
 	}
 
-	balance.Current = balance.Current.Sub(withdrawal.Amount())
-	balance.Withdrawn = balance.Withdrawn.Add(withdrawal.Amount())
+	balance.SubCurrent(withdrawal.Amount())
+	balance.AddWithdrawn(withdrawal.Amount())
 
 	s.UserWithdrawalStore.withdrawals[userLogin] = append(s.UserWithdrawalStore.withdrawals[userLogin], withdrawal)
 
@@ -158,7 +166,7 @@ func (s *Storage) GetWithdrawalsByUserLogin(_ context.Context, login string) ([]
 
 	withdrawals, ok := s.UserWithdrawalStore.withdrawals[login]
 	if !ok {
-		return nil, storage.ErrBalanceWithdrawalsNotFound
+		return withdrawals, nil
 	}
 
 	sort.Slice(withdrawals, func(i, j int) bool {
@@ -168,15 +176,15 @@ func (s *Storage) GetWithdrawalsByUserLogin(_ context.Context, login string) ([]
 	return withdrawals, nil
 }
 
-func (s *Storage) CreateOrder(_ context.Context, ord *orders.Order) error {
+func (s *Storage) CreateOrder(_ context.Context, order *orders.Order) error {
 	s.OrderStore.mu.Lock()
 	defer s.OrderStore.mu.Unlock()
 
-	if _, ok := s.OrderStore.orders[ord.Number]; ok {
+	if _, ok := s.OrderStore.orders[order.Number()]; ok {
 		return storage.ErrOrderAlreadyExists
 	}
 
-	s.OrderStore.orders[ord.Number] = ord
+	s.OrderStore.orders[order.Number()] = order
 
 	return nil
 }
@@ -193,20 +201,77 @@ func (s *Storage) GetOrder(_ context.Context, number string) (*orders.Order, err
 	return ord, nil
 }
 
-func (s *Storage) GetOrdersByUserLogin(_ context.Context, login string) ([]*orders.Order, error) {
+func (s *Storage) GetOrders(_ context.Context, login string, statuses ...orders.OrderStatus) ([]*orders.Order, error) {
 	s.OrderStore.mu.Lock()
 	defer s.OrderStore.mu.Unlock()
 
 	var orders []*orders.Order
-	for _, ord := range s.OrderStore.orders {
-		if ord.UserLogin == login {
-			orders = append(orders, ord)
+	for _, order := range s.OrderStore.orders {
+		if order.UserLogin() == login {
+			if len(statuses) == 0 {
+				orders = append(orders, order)
+
+				continue
+			}
+
+			if slices.Contains(statuses, order.Status()) {
+				orders = append(orders, order)
+			}
 		}
 	}
 
 	sort.Slice(orders, func(i, j int) bool {
-		return orders[i].UploadedAt.Before(orders[j].UploadedAt)
+		return orders[i].UploadedAt().Before(orders[j].UploadedAt())
 	})
 
 	return orders, nil
+}
+
+func (s *Storage) GetOrdersByStatus(_ context.Context, statuses ...orders.OrderStatus) ([]*orders.Order, error) {
+	s.OrderStore.mu.Lock()
+	defer s.OrderStore.mu.Unlock()
+
+	var orders []*orders.Order
+	for _, order := range s.OrderStore.orders {
+		if len(statuses) == 0 {
+			orders = append(orders, order)
+
+			continue
+		}
+
+		if slices.Contains(statuses, order.Status()) {
+			orders = append(orders, order)
+		}
+	}
+
+	sort.Slice(orders, func(i, j int) bool {
+		return orders[i].UploadedAt().Before(orders[j].UploadedAt())
+	})
+
+	return orders, nil
+}
+
+func (s *Storage) ProcessOrderAccrual(_ context.Context, order *orders.Order) error {
+	s.OrderStore.mu.Lock()
+	defer s.OrderStore.mu.Unlock()
+
+	s.UserBalanceStore.mu.Lock()
+	defer s.UserBalanceStore.mu.Unlock()
+
+	ord, ok := s.OrderStore.orders[order.Number()]
+	if !ok {
+		return storage.ErrOrderNotFound
+	}
+
+	ord.SetStatus(order.Status())
+	ord.SetAccrual(order.Accrual())
+
+	userBalance, ok := s.UserBalanceStore.balances[order.UserLogin()]
+	if !ok {
+		return storage.ErrUserBalanceNotFound
+	}
+
+	userBalance.AddCurrent(order.Accrual())
+
+	return nil
 }

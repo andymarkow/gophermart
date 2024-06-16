@@ -3,16 +3,16 @@ package main
 import (
 	"log"
 
-	"github.com/andymarkow/gophermart/internal/server"
+	application "github.com/andymarkow/gophermart/internal/app"
 )
 
 func main() {
-	srv, err := server.NewServer()
+	app, err := application.New()
 	if err != nil {
-		log.Fatalf("server.NewServer: %v", err)
+		log.Fatalf("application.New: %v", err)
 	}
 
-	if err := srv.Start(); err != nil {
-		log.Fatalf("server.Start: %v", err)
+	if err := app.Run(); err != nil {
+		log.Fatalf("application.Run: %v", err)
 	}
 }
