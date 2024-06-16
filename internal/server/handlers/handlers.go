@@ -447,7 +447,7 @@ func (h *Handlers) GetUserWithdrawals(w http.ResponseWriter, r *http.Request) {
 	for i, withdrawal := range withdrawals {
 		withdrawalsResp[i] = models.BalanceWithdrawalResponse{
 			OrderNumber: withdrawal.OrderNumber(),
-			Amount:      withdrawal.Amount(),
+			Amount:      withdrawal.Amount().InexactFloat64(),
 			ProcessedAt: withdrawal.ProcessedAt().Format(time.RFC3339),
 		}
 	}

@@ -21,9 +21,9 @@ type BalanceWithdrawalRequest struct {
 }
 
 type BalanceWithdrawalResponse struct {
-	OrderNumber string          `json:"order"`
-	Amount      decimal.Decimal `json:"sum"`
-	ProcessedAt string          `json:"processed_at"`
+	OrderNumber string  `json:"order"`
+	Amount      float64 `json:"sum"`
+	ProcessedAt string  `json:"processed_at"`
 }
 
 type OrderResponse struct {
