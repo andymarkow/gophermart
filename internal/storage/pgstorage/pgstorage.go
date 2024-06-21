@@ -353,7 +353,6 @@ func (s *Storage) GetWithdrawalsByUserLogin(ctx context.Context, login string) (
 		if err != nil {
 			return fmt.Errorf("db.QueryContext: %w", err)
 		}
-
 		defer rows.Close()
 
 		for rows.Next() {
@@ -366,6 +365,10 @@ func (s *Storage) GetWithdrawalsByUserLogin(ctx context.Context, login string) (
 			}
 
 			dbWithdrawals = append(dbWithdrawals, dbWithdrowal)
+		}
+
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("rows.Err: %w", err)
 		}
 
 		return nil
@@ -482,6 +485,10 @@ func (s *Storage) GetOrdersByLogin(ctx context.Context, login string) ([]*orders
 			dbOrders = append(dbOrders, dbOrder)
 		}
 
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("rows.Err: %w", err)
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -540,6 +547,10 @@ func (s *Storage) GetOrdersByStatus(ctx context.Context, statuses ...orders.Orde
 			}
 
 			dbOrders = append(dbOrders, dbOrder)
+		}
+
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("rows.Err: %w", err)
 		}
 
 		return nil
