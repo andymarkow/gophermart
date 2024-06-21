@@ -17,11 +17,18 @@ type User struct {
 	passwordHash string
 }
 
-func NewUser(login, password string) (*User, error) {
+func NewUser(login, passwordHash string) (*User, error) {
 	if err := ValidateLogin(login); err != nil {
 		return nil, err
 	}
 
+	return &User{
+		login:        login,
+		passwordHash: passwordHash,
+	}, nil
+}
+
+func CreateUser(login, password string) (*User, error) {
 	if err := validatePassword(password); err != nil {
 		return nil, err
 	}
@@ -31,10 +38,7 @@ func NewUser(login, password string) (*User, error) {
 		return nil, fmt.Errorf("getPasswordHash: %w", err)
 	}
 
-	return &User{
-		login:        login,
-		passwordHash: passwordHash,
-	}, nil
+	return NewUser(login, passwordHash)
 }
 
 func (u *User) Login() string {

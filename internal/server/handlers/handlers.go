@@ -114,7 +114,7 @@ func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	user, err := users.NewUser(userPayload.Login, userPayload.Password)
+	user, err := users.CreateUser(userPayload.Login, userPayload.Password)
 	if err != nil {
 		h.log.Error("users.NewUser()", slog.Any("error", err))
 		handleError(w, errmsg.NewHTTPError(http.StatusInternalServerError, err))
@@ -237,16 +237,16 @@ func (h *Handlers) CreateUserOrder(w http.ResponseWriter, r *http.Request) {
 	// Set order number from request body
 	orderNumber := string(body)
 
-	orderReq, err := orders.NewOrder(orderNumber, userLogin)
+	orderReq, err := orders.CreateOrder(orderNumber, userLogin)
 	if err != nil {
-		if errors.Is(err, orders.ErrOrderNumberFormatInvalid) {
-			h.log.Error("orders.NewOrder()", slog.Any("error", err))
+		if errors.Is(err, orders.ErrOrderIDFormatInvalid) {
+			h.log.Error("orders.CreateOrder()", slog.Any("error", err))
 			handleError(w, errmsg.ErrOrderNumberFormatInvalid)
 
 			return
 		}
 
-		h.log.Error("orders.NewOrder()", slog.Any("error", err))
+		h.log.Error("orders.CreateOrder()", slog.Any("error", err))
 		handleError(w, errmsg.NewHTTPError(http.StatusBadRequest, err))
 
 		return
@@ -298,9 +298,9 @@ func (h *Handlers) GetUserOrders(w http.ResponseWriter, r *http.Request) {
 	// Set user login from JWT sub claim field
 	userLogin := token.Subject()
 
-	userOrders, err := h.storage.GetOrders(r.Context(), userLogin)
+	userOrders, err := h.storage.GetOrdersByLogin(r.Context(), userLogin)
 	if err != nil {
-		h.log.Error("storage.GetOrdersByUserLogin()", slog.Any("error", err))
+		h.log.Error("storage.GetOrdersByLogin()", slog.Any("error", err))
 		handleError(w, errmsg.NewHTTPError(http.StatusInternalServerError, err))
 
 		return
@@ -315,7 +315,7 @@ func (h *Handlers) GetUserOrders(w http.ResponseWriter, r *http.Request) {
 	orderResp := make([]models.OrderResponse, 0, len(userOrders))
 	for _, ord := range userOrders {
 		orderResp = append(orderResp, models.OrderResponse{
-			Number:     ord.Number(),
+			Number:     ord.ID(),
 			Status:     ord.Status(),
 			Accrual:    ord.Accrual().InexactFloat64(),
 			UploadedAt: ord.UploadedAt().Format(time.RFC3339),
@@ -383,18 +383,18 @@ func (h *Handlers) WithdrawUserBalance(w http.ResponseWriter, r *http.Request) {
 	// Set user login from JWT sub claim field
 	userLogin := token.Subject()
 
-	withdrawal, err := withdrawals.NewWithdrawal(
+	withdrawal, err := withdrawals.CreateWithdrawal(
 		userLogin, withdrawalRequest.OrderNumber, withdrawalRequest.Amount,
 	)
 	if err != nil {
-		if errors.Is(err, orders.ErrOrderNumberFormatInvalid) {
-			h.log.Error("withdrawals.NewWithdrawal()", slog.Any("error", err))
+		if errors.Is(err, orders.ErrOrderIDFormatInvalid) {
+			h.log.Error("withdrawals.CreateWithdrawal()", slog.Any("error", err))
 			handleError(w, errmsg.ErrOrderNumberFormatInvalid)
 
 			return
 		}
 
-		h.log.Error("withdrawals.NewWithdrawal()", slog.Any("error", err))
+		h.log.Error("withdrawals.CreateWithdrawal()", slog.Any("error", err))
 		handleError(w, errmsg.NewHTTPError(http.StatusInternalServerError, err))
 
 		return
@@ -431,7 +431,7 @@ func (h *Handlers) GetUserWithdrawals(w http.ResponseWriter, r *http.Request) {
 
 	withdrawals, err := h.storage.GetWithdrawalsByUserLogin(r.Context(), userLogin)
 	if err != nil {
-		h.log.Error("storage.GetWithdrawalsHistory()", slog.Any("error", err))
+		h.log.Error("storage.GetWithdrawalsByUserLogin()", slog.Any("error", err))
 		handleError(w, errmsg.NewHTTPError(http.StatusInternalServerError, err))
 
 		return
@@ -446,7 +446,7 @@ func (h *Handlers) GetUserWithdrawals(w http.ResponseWriter, r *http.Request) {
 	withdrawalsResp := make([]models.BalanceWithdrawalResponse, len(withdrawals))
 	for i, withdrawal := range withdrawals {
 		withdrawalsResp[i] = models.BalanceWithdrawalResponse{
-			OrderNumber: withdrawal.OrderNumber(),
+			OrderNumber: withdrawal.OrderID(),
 			Amount:      withdrawal.Amount().InexactFloat64(),
 			ProcessedAt: withdrawal.ProcessedAt().Format(time.RFC3339),
 		}

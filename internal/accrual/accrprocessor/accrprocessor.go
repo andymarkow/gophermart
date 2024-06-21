@@ -122,10 +122,10 @@ func (a *AccrualProcessor) orderProcessorWorker(ctx context.Context, wg *sync.Wa
 				return
 			}
 
-			a.log.Info("Processing order", slog.String("order_number", order.Number()))
+			a.log.Info("Processing order", slog.String("order_number", order.ID()))
 
 			// Get order data from accrual system
-			ord, err := a.accrclient.GetOrder(ctx, order.Number())
+			ord, err := a.accrclient.GetOrder(ctx, order.ID())
 			if err != nil {
 				a.log.Error("accrclient.GetOrder()", slog.Any("error", err))
 
@@ -134,7 +134,7 @@ func (a *AccrualProcessor) orderProcessorWorker(ctx context.Context, wg *sync.Wa
 
 			// If order is not processed yet, skip it
 			if ord.Status() == accrclient.OrderStatusRegistered || ord.Status() == accrclient.OrderStatusProcessing {
-				a.log.Info("Order is not processed yet in accrual system", slog.String("order_number", order.Number()))
+				a.log.Info("Order is not processed yet in accrual system", slog.String("order_number", order.ID()))
 
 				continue
 			}
@@ -149,7 +149,7 @@ func (a *AccrualProcessor) orderProcessorWorker(ctx context.Context, wg *sync.Wa
 			}
 
 			a.log.Info("Order processed",
-				slog.String("order_number", order.Number()),
+				slog.String("order_number", order.ID()),
 				slog.String("order_status", string(order.Status())),
 				slog.String("order_user", order.UserLogin()),
 				slog.String("order_accrual", order.Accrual().String()),

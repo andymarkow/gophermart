@@ -8,7 +8,6 @@ import (
 	"github.com/andymarkow/gophermart/internal/domain/orders"
 	"github.com/andymarkow/gophermart/internal/domain/users"
 	"github.com/andymarkow/gophermart/internal/domain/withdrawals"
-	"github.com/shopspring/decimal"
 )
 
 var (
@@ -29,14 +28,13 @@ type UserStorage interface {
 
 type UserBalanceStorage interface {
 	GetUserBalance(ctx context.Context, login string) (*balance.Balance, error)
-	DepositUserBalance(ctx context.Context, login string, amount decimal.Decimal) error
 	WithdrawUserBalance(ctx context.Context, withdrawal *withdrawals.Withdrawal) error
 	GetWithdrawalsByUserLogin(ctx context.Context, login string) ([]*withdrawals.Withdrawal, error)
 }
 
 type OrderStorage interface {
 	GetOrder(ctx context.Context, number string) (*orders.Order, error)
-	GetOrders(ctx context.Context, login string, statuses ...orders.OrderStatus) ([]*orders.Order, error)
+	GetOrdersByLogin(ctx context.Context, login string) ([]*orders.Order, error)
 	GetOrdersByStatus(ctx context.Context, statuses ...orders.OrderStatus) ([]*orders.Order, error)
 	CreateOrder(ctx context.Context, order *orders.Order) error
 	ProcessOrderAccrual(ctx context.Context, order *orders.Order) error

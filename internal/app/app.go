@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/andymarkow/gophermart/internal/accrual"
 	"github.com/andymarkow/gophermart/internal/config"
@@ -14,10 +15,12 @@ import (
 	"github.com/andymarkow/gophermart/internal/server"
 	"github.com/andymarkow/gophermart/internal/storage"
 	"github.com/andymarkow/gophermart/internal/storage/inmemory"
+	"github.com/andymarkow/gophermart/internal/storage/pgstorage"
 )
 
 type Application struct {
 	log     *slog.Logger
+	storage storage.Storage
 	server  *server.Server
 	accrual *accrual.Accrual
 }
@@ -39,9 +42,26 @@ func New() (*Application, error) {
 		logger.WithAddSource(false),
 	)
 
-	memstore := inmemory.NewStorage()
+	var repo storage.Storage
 
-	store := storage.NewStorage(memstore)
+	repo = inmemory.NewStorage()
+
+	if cfg.DatabaseURI != "" {
+		repo, err = pgstorage.NewStorage(cfg.DatabaseURI)
+		if err != nil {
+			return nil, fmt.Errorf("pgstorage.NewStorage: %w", err)
+		}
+
+		if pgrepo, ok := repo.(*pgstorage.Storage); ok {
+			logg.Info("Running migrations for Postgres database...")
+
+			if err := pgrepo.Bootstrap(context.Background()); err != nil {
+				return nil, fmt.Errorf("pgstorage.Bootstrap: %w", err)
+			}
+		}
+	}
+
+	store := storage.NewStorage(repo)
 
 	srv, err := server.NewServer(
 		store,
@@ -53,6 +73,8 @@ func New() (*Application, error) {
 		return nil, fmt.Errorf("server.NewServer: %w", err)
 	}
 
+	logg.Info("Accrual system address set to: " + cfg.AccrualURI)
+
 	accr := accrual.NewAccrual(
 		store,
 		accrual.WithLogger(logg),
@@ -62,12 +84,19 @@ func New() (*Application, error) {
 
 	return &Application{
 		log:     logg,
+		storage: store,
 		server:  srv,
 		accrual: accr,
 	}, nil
 }
 
 func (a *Application) Run() error {
+	defer func() {
+		if err := a.storage.Close(); err != nil {
+			a.log.Error("storage.Close()", slog.Any("error", err))
+		}
+	}()
+
 	errChan := make(chan error, 1)
 
 	go func() {
@@ -77,7 +106,11 @@ func (a *Application) Run() error {
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	defer func() {
+		cancel()
+
+		time.Sleep(time.Second * 1)
+	}()
 
 	go func() {
 		if err := a.accrual.Run(ctx); err != nil {
@@ -96,8 +129,6 @@ func (a *Application) Run() error {
 
 		case <-quit:
 			a.log.Info("Gracefully shutting down application...")
-
-			cancel()
 
 			return nil
 		}

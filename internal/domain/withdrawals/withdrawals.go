@@ -11,34 +11,38 @@ import (
 
 type Withdrawal struct {
 	userLogin   string
-	orderNumber string
+	orderID     string
 	amount      decimal.Decimal
 	processedAt time.Time
 }
 
-func NewWithdrawal(userLogin, orderNumber string, amount decimal.Decimal) (*Withdrawal, error) {
+func NewWithdrawal(userLogin, orderID string, amount decimal.Decimal, processedAt time.Time) (*Withdrawal, error) {
 	if err := users.ValidateLogin(userLogin); err != nil {
 		return nil, err
 	}
 
-	if err := orders.ValidateOrderNumber(orderNumber); err != nil {
+	if err := orders.ValidateOrderID(orderID); err != nil {
 		return nil, err
 	}
 
 	return &Withdrawal{
 		userLogin:   userLogin,
-		orderNumber: orderNumber,
+		orderID:     orderID,
 		amount:      amount,
 		processedAt: time.Now(),
 	}, nil
+}
+
+func CreateWithdrawal(userLogin, orderID string, amount decimal.Decimal) (*Withdrawal, error) {
+	return NewWithdrawal(userLogin, orderID, amount, time.Now())
 }
 
 func (w *Withdrawal) UserLogin() string {
 	return w.userLogin
 }
 
-func (w *Withdrawal) OrderNumber() string {
-	return w.orderNumber
+func (w *Withdrawal) OrderID() string {
+	return w.orderID
 }
 
 func (w *Withdrawal) Amount() decimal.Decimal {

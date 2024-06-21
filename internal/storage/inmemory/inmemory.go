@@ -180,11 +180,11 @@ func (s *Storage) CreateOrder(_ context.Context, order *orders.Order) error {
 	s.OrderStore.mu.Lock()
 	defer s.OrderStore.mu.Unlock()
 
-	if _, ok := s.OrderStore.orders[order.Number()]; ok {
+	if _, ok := s.OrderStore.orders[order.ID()]; ok {
 		return storage.ErrOrderAlreadyExists
 	}
 
-	s.OrderStore.orders[order.Number()] = order
+	s.OrderStore.orders[order.ID()] = order
 
 	return nil
 }
@@ -201,22 +201,14 @@ func (s *Storage) GetOrder(_ context.Context, number string) (*orders.Order, err
 	return ord, nil
 }
 
-func (s *Storage) GetOrders(_ context.Context, login string, statuses ...orders.OrderStatus) ([]*orders.Order, error) {
+func (s *Storage) GetOrdersByLogin(_ context.Context, login string) ([]*orders.Order, error) {
 	s.OrderStore.mu.Lock()
 	defer s.OrderStore.mu.Unlock()
 
 	var orders []*orders.Order
 	for _, order := range s.OrderStore.orders {
 		if order.UserLogin() == login {
-			if len(statuses) == 0 {
-				orders = append(orders, order)
-
-				continue
-			}
-
-			if slices.Contains(statuses, order.Status()) {
-				orders = append(orders, order)
-			}
+			orders = append(orders, order)
 		}
 	}
 
@@ -258,7 +250,7 @@ func (s *Storage) ProcessOrderAccrual(_ context.Context, order *orders.Order) er
 	s.UserBalanceStore.mu.Lock()
 	defer s.UserBalanceStore.mu.Unlock()
 
-	ord, ok := s.OrderStore.orders[order.Number()]
+	ord, ok := s.OrderStore.orders[order.ID()]
 	if !ok {
 		return storage.ErrOrderNotFound
 	}
