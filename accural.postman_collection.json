@@ -1,0 +1,117 @@
+{
+	"info": {
+		"_postman_id": "d87a7110-cf53-4060-b061-e927a19a120b",
+		"name": "accural",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "11786897"
+	},
+	"item": [
+		{
+			"name": "register_accrual_mechanic",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{ \"match\": \"{{mark}}\", \"reward\": 5, \"reward_type\": \"%\" }",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{host}}/api/goods",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"api",
+						"goods"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "register_order_for_accrual",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"order\": \"12345678903\",\r\n    \"goods\": [\r\n        {\r\n            \"description\": \"Стиральная машинка LG\",\r\n            \"price\": 47399.99\r\n        },\r\n        {\r\n            \"description\": \"Телевизор {{mark}}\",\r\n            \"price\": 14599.50\r\n        }\r\n    ]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{host}}/api/orders",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"api",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "getOrder",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host}}/api/orders/12345678903",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"api",
+						"orders",
+						"12345678903"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "host",
+			"value": "localhost:8081",
+			"type": "string"
+		},
+		{
+			"key": "mark",
+			"value": "GOMARKET",
+			"type": "string"
+		}
+	]
+}
